@@ -40,8 +40,10 @@ public final class AgentSqlEventSender {
             try (OutputStream os = connection.getOutputStream()) {
                 os.write(bytes);
             }
-            connection.getResponseCode();
-        } catch (Exception ignored) {
+            int responseCode = connection.getResponseCode();
+            AgentDebugLog.info("Sent SQL event to http://" + host + ":" + port + "/sql, responseCode=" + responseCode);
+        } catch (Exception e) {
+            AgentDebugLog.warn("Failed to send SQL event to http://" + host + ":" + port + "/sql", e);
         } finally {
             if (connection != null) {
                 connection.disconnect();
