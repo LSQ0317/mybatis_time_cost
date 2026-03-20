@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Service(Service.Level.APP)
+@Service
 public final class MybatisLogParserService {
     private static final Pattern LOG_PATTERN = Pattern.compile(
             "^\\[(?<timestamp>[^\\]]+)]\\s*\\[(?<thread>[^\\]]+)]\\s*\\[(?<mapper>[^\\]]*)]\\s*:\\s*(?<payload>.*)$"
@@ -173,7 +173,7 @@ public final class MybatisLogParserService {
             }
             current.append(c);
         }
-        if (!current.isEmpty()) {
+        if (current.length() > 0) {
             result.add(current.toString());
         }
         return result;
@@ -226,7 +226,7 @@ public final class MybatisLogParserService {
         private final String type;
 
         private ParameterValue(String value, String type) {
-            this.value = Objects.requireNonNullElse(value, "").trim();
+            this.value = value != null ? value.trim() : "";
             this.type = type;
         }
     }

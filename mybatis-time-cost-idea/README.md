@@ -1,49 +1,102 @@
-# MyBatis Time Cost IDEA 插件（无 UI 第一阶段）
+# MyBatis Time Cost IDEA 插件
 
-功能（第一阶段）：
-- 接收 SQL（本地 HTTP /sql）
-- 打印日志（IDEA idea.log）
-- 自动复制 SQL 到剪贴板
-- 显示耗时（日志中展示）
+这是仓库里的 IntelliJ IDEA 插件模块。它负责：
+- 在本地启动 HTTP 服务接收 SQL 事件
+- 解析可选的控制台 MyBatis 日志
+- 在 Tool Window 中展示 SQL、耗时、Mapper、线程信息
+- 自动复制最新 SQL
+- 在 Run/Debug 时自动为 Java 程序注入 Java Agent
 
-## 运行与调试
-- 需要本机安装 Gradle（或在 IDE 中使用 Gradle 执行）。
-- 在 `mybatis-time-cost-idea` 目录执行：
-  - 调试运行：`gradle runIde`
-  - 打包插件：`gradle buildPlugin`
+## 当前能力
 
-默认在本机启动 HTTP 监听：`http://127.0.0.1:17777/sql`
-- 覆盖端口：设置环境变量 `MYBATIS_TIME_COST_PORT` 或 JVM 参数 `-Dmybatis.timecost.port=18080`
+当前插件已经具备以下功能：
+- Tool Window 展示最近 SQL 事件
+- 本地 HTTP 接收：`POST /sql`
+- 控制台日志解析
+- Run/Debug 自动注入 Java Agent
+- 设置页配置端口、慢查询阈值、事件上限和采集开关
+- 慢 SQL 高亮
 
-## 接口协议
-- 方法：POST `/sql`
-- Content-Type：`application/json`
-- 请求体字段（至少提供 `sqlRendered` 或 `sql` 其一）：
-  - sqlRendered: string（最终可运行 SQL，推荐）
-  - sql: string（别名，若未提供 sqlRendered 则使用）
-  - durationMs: number（耗时，毫秒，可选）
-  - mapperId: string（可选）
-  - threadName: string（可选）
+## 兼容版本
 
-### 返回
-```json
-{ "status": "ok" }
+当前构建目标已调整为：
+- IntelliJ IDEA `2020.1`
+- `since-build = 201`
+- 插件模块字节码目标 Java 8
+
+## 打包与调试
+
+在 `mybatis-time-cost-idea` 目录下执行：
+
+```bash
+./gradlew runIde
+./gradlew buildPlugin
 ```
 
-## 示例
+打包后插件 ZIP 位于：
+- `build/distributions/mybatis-time-cost-idea-0.1.0.zip`
+
+## 本地接收协议
+
+监听地址默认是：
+- `http://127.0.0.1:17777/sql`
+
+端口覆盖方式：
+- 环境变量：`MYBATIS_TIME_COST_PORT`
+- JVM 参数：`-Dmybatis.timecost.port=18080`
+
+请求方法：
+- `POST /sql`
+
+当前插件实际消费的关键字段：
+- `sqlRendered` 或 `sql`
+- `durationMs`
+- `mapperId`
+- `threadName`
+
+返回示例：
+
+```json
+{"status":"ok"}
+```
+
+请求示例：
+
 ```bash
 curl -X POST http://127.0.0.1:17777/sql \
   -H 'Content-Type: application/json' \
-  -d '{"sqlRendered":"select * from user where id = 42","durationMs":123,"mapperId":"com.acme.UserMapper.findById"}'
+  -d '{"sqlRendered":"select * from user where id = 42","durationMs":123,"mapperId":"com.acme.UserMapper.findById","threadName":"main"}'
 ```
 
-IDEA 日志将出现类似内容（同时 SQL 已复制到剪贴板）：
-```
-[MyBatis-TimeCost] duration=123ms mapper=com.acme.UserMapper.findById thread=main sql=select * from user where id = 42
-[MyBatis-TimeCost] SQL copied to clipboard
-```
+## 内部结构
 
-## 与业务系统集成（思路）
-- 在你的 MyBatis 工程中，通过自定义拦截器或 AOP 采集 `BoundSql` 渲染后的 SQL 与耗时，然后 POST 到上述接口。
-- 若只需最快可用，可在现有日志钩子处将最终 SQL 与耗时发送到本地端口。
+主要代码分成几块：
+- `SqlReceiverService`
+  - 本地 HTTP 服务
+- `SqlEventStore`
+  - 事件存储和监听通知
+- `SqlToolWindowPanel`
+  - Tool Window UI
+- `SqlSettingsState` / `SqlSettingsConfigurable`
+  - 设置持久化和设置页
+- `MybatisLogConsoleFilter` / `MybatisLogParserService`
+  - 控制台日志解析
+- `MybatisAgentRunConfigurationExtension`
+  - Run/Debug 自动注入 Java Agent
+- `agent/`
+  - ByteBuddy Java Agent 实现
 
+## 与业务应用的两种集成方式
+
+### 1. 通过 MyBatis 拦截器库集成
+
+业务应用引入 `mybatis-time-cost-mybatis`，由它采集并发送 SQL 到本插件。
+
+### 2. 通过插件自动注入 Java Agent
+
+如果应用是从 IDEA 里启动的，插件可以在运行配置中自动加入 `-javaagent`，由 agent 在目标 JVM 内采集 SQL。
+
+## 进一步阅读
+
+更详细的源码讲解见：
+- [code_read.md](/Users/wintermist/IdeaProjects/mybatis_time_cost/code_read.md)

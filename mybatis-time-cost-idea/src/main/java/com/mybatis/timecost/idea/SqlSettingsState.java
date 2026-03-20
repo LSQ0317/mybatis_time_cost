@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-@Service(Service.Level.APP)
+@Service
 @State(name = "MyBatisTimeCostSettings", storages = @Storage("mybatis-time-cost.xml"))
 public final class SqlSettingsState implements PersistentStateComponent<SqlSettingsState.State> {
     private State state = new State();
@@ -143,7 +143,7 @@ public final class SqlSettingsState implements PersistentStateComponent<SqlSetti
     }
 
     private static Integer parsePort(String value) {
-        if (value == null || value.isBlank()) {
+        if (value == null || value.trim().isEmpty()) {
             return null;
         }
         try {

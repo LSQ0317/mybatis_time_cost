@@ -9,6 +9,7 @@ import com.intellij.openapi.ide.CopyPasteManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.datatransfer.StringSelection;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -164,8 +165,13 @@ public final class SqlReceiverService implements Disposable {
         }
 
         private static String readBody(InputStream is) throws IOException {
-            byte[] buf = is.readAllBytes();
-            return new String(buf, StandardCharsets.UTF_8);
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            byte[] chunk = new byte[4096];
+            int read;
+            while ((read = is.read(chunk)) != -1) {
+                buffer.write(chunk, 0, read);
+            }
+            return new String(buffer.toByteArray(), StandardCharsets.UTF_8);
         }
 
         private static void respond(HttpExchange exchange, int code, String text) throws IOException {

@@ -13,14 +13,14 @@ import java.nio.file.Path;
 
 public final class MybatisAgentRunConfigurationExtension extends RunConfigurationExtension {
     @Override
-    public boolean isApplicableFor(@NotNull RunConfigurationBase<?> configuration) {
+    public boolean isApplicableFor(@NotNull RunConfigurationBase configuration) {
         return configuration instanceof CommonJavaRunConfigurationParameters;
     }
 
     @Override
-    public <T extends RunConfigurationBase<?>> void updateJavaParameters(@NotNull T configuration,
-                                                                         @NotNull JavaParameters javaParameters,
-                                                                         RunnerSettings runnerSettings) throws ExecutionException {
+    public <T extends RunConfigurationBase> void updateJavaParameters(T configuration,
+                                                                      @NotNull JavaParameters javaParameters,
+                                                                      RunnerSettings runnerSettings) throws ExecutionException {
         SqlSettingsState settings = SqlSettingsState.getInstance();
         if (!settings.isCaptureEnabled() || !settings.isAgentInjectionEnabled()) {
             return;

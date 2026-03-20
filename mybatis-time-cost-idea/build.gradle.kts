@@ -7,9 +7,12 @@ group = "com.mybatis.timecost"
 version = "0.1.0"
 
 java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
-    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(8)
 }
 
 repositories {
@@ -22,12 +25,16 @@ dependencies {
 }
 
 intellij {
-    version.set("2024.3")
+    version.set("2020.1")
     type.set("IC")
     plugins.set(listOf("java"))
 }
 
 tasks {
+    buildSearchableOptions {
+        enabled = false
+    }
+
     runIde {
         minHeapSize = "512m"
         maxHeapSize = "2048m"
@@ -35,7 +42,7 @@ tasks {
     }
 
     patchPluginXml {
-        sinceBuild.set("243")
+        sinceBuild.set("201")
         untilBuild.set("")
         changeNotes.set("""
             第一阶段（无 UI）：接收 SQL、打印日志、自动复制、显示耗时

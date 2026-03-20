@@ -11,7 +11,7 @@ public final class SqlToolWindowFactory implements ToolWindowFactory {
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
         SqlToolWindowPanel panel = new SqlToolWindowPanel();
-        Content content = ContentFactory.getInstance().createContent(panel, "", false);
+        Content content = ContentFactory.SERVICE.getInstance().createContent(panel, "", false);
         toolWindow.getContentManager().addContent(content);
     }
 }

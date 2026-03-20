@@ -4,7 +4,7 @@
     <vendor email="wintermist317@gmail.com">刘少琦</vendor>
     <version>0.1.0</version>
     <description>通过控制台日志或本地 HTTP 接收 MyBatis SQL，在 IDEA 中展示完整 SQL 与耗时</description>
-    <idea-version since-build="243"/>
+    <idea-version since-build="201"/>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>

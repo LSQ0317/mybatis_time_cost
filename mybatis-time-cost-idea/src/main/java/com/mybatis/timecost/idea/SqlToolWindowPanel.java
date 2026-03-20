@@ -222,13 +222,18 @@ public final class SqlToolWindowPanel extends JPanel implements SqlEventListener
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             SqlEvent event = events.get(rowIndex);
-            return switch (columnIndex) {
-                case 0 -> TIME_FORMATTER.format(Instant.ofEpochMilli(event.getReceivedAt()));
-                case 1 -> DurationFormatUtil.format(event.getDurationMs());
-                case 2 -> valueOrDefault(event.getMapperId());
-                case 3 -> compact(event.getSql());
-                default -> "";
-            };
+            switch (columnIndex) {
+                case 0:
+                    return TIME_FORMATTER.format(Instant.ofEpochMilli(event.getReceivedAt()));
+                case 1:
+                    return DurationFormatUtil.format(event.getDurationMs());
+                case 2:
+                    return valueOrDefault(event.getMapperId());
+                case 3:
+                    return compact(event.getSql());
+                default:
+                    return "";
+            }
         }
     }
 
@@ -237,7 +242,8 @@ public final class SqlToolWindowPanel extends JPanel implements SqlEventListener
         public Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected,
                                                        boolean hasFocus, int row, int column) {
             Component component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            if (!isSelected && table.getModel() instanceof SqlEventTableModel model) {
+            if (!isSelected && table.getModel() instanceof SqlEventTableModel) {
+                SqlEventTableModel model = (SqlEventTableModel) table.getModel();
                 SqlEvent event = model.getEventAt(row);
                 int slowThresholdMs = SqlSettingsState.getInstance().getSlowThresholdMs();
                 if (event.getDurationMs() != null && event.getDurationMs() >= slowThresholdMs) {
