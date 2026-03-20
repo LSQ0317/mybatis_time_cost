@@ -1,0 +1,172 @@
+package com.mybatis.timecost.idea;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.Disposable;
+import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.ide.CopyPasteManager;
+import org.jetbrains.annotations.NotNull;
+
+import java.awt.datatransfer.StringSelection;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+
+public final class SqlReceiverService implements Disposable {
+    private static final Logger LOG = Logger.getInstance(SqlReceiverService.class);
+    private volatile boolean started = false;
+    private HttpServer server;
+    private ExecutorService executor;
+    private int currentPort = -1;
+
+    public static SqlReceiverService getInstance() {
+        return ApplicationManager.getApplication().getService(SqlReceiverService.class);
+    }
+
+    public SqlReceiverService() {
+        reloadConfiguration();
+    }
+
+    public synchronized void reloadConfiguration() {
+        SqlSettingsState settings = SqlSettingsState.getInstance();
+        if (!settings.isCaptureEnabled() || !settings.isHttpCaptureEnabled()) {
+            stopServer();
+            return;
+        }
+        int port = settings.getPort();
+        if (started && currentPort == port) {
+            return;
+        }
+        stopServer();
+        try {
+            server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
+            server.createContext("/sql", new SqlHandler());
+            executor = Executors.newCachedThreadPool();
+            server.setExecutor(executor);
+            server.start();
+            started = true;
+            currentPort = port;
+            LOG.info("[MyBatis-TimeCost] HTTP server started on http://127.0.0.1:" + port + "/sql");
+        } catch (IOException e) {
+            currentPort = -1;
+            LOG.warn("[MyBatis-TimeCost] Failed to start HTTP server on port " + port, e);
+        }
+    }
+
+    @Override
+    public synchronized void dispose() {
+        stopServer();
+    }
+
+    private void stopServer() {
+        if (server != null) {
+            server.stop(0);
+            server = null;
+        }
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
+        if (started) {
+            LOG.info("[MyBatis-TimeCost] HTTP server stopped");
+        }
+        started = false;
+        currentPort = -1;
+    }
+
+    public boolean isStarted() {
+        return started;
+    }
+
+    public int getCurrentPort() {
+        return currentPort;
+    }
+
+    private static final class SqlHandler implements HttpHandler {
+        @Override
+        public void handle(@NotNull HttpExchange exchange) throws IOException {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                respond(exchange, 405, "Method Not Allowed");
+                return;
+            }
+            String body = readBody(exchange.getRequestBody());
+            try {
+                JsonObject obj = JsonParser.parseString(body).getAsJsonObject();
+                String sql = getAsString(obj, "sqlRendered", getAsString(obj, "sql", null));
+                Long duration = getAsLong(obj, "durationMs", null);
+                String mapperId = getAsString(obj, "mapperId", null);
+                String thread = getAsString(obj, "threadName", Thread.currentThread().getName());
+
+                if (sql == null || sql.isEmpty()) {
+                    respond(exchange, 400, "Missing field: sql/sqlRendered");
+                    return;
+                }
+
+                String logLine = "[MyBatis-TimeCost] duration=" + (duration != null ? duration + "ms" : "n/a")
+                        + (mapperId != null ? " mapper=" + mapperId : "")
+                        + " thread=" + thread
+                        + " sql=" + compact(sql);
+                Logger.getInstance(SqlReceiverService.class).info(logLine);
+                SqlEventStore.getInstance().addEvent(
+                        new SqlEvent(System.currentTimeMillis(), sql, duration, mapperId, thread)
+                );
+
+                if (SqlSettingsState.getInstance().isAutoCopyToClipboard()) {
+                    try {
+                        CopyPasteManager.getInstance().setContents(new StringSelection(sql));
+                        Logger.getInstance(SqlReceiverService.class).info("[MyBatis-TimeCost] SQL copied to clipboard");
+                    } catch (Throwable t) {
+                        Logger.getInstance(SqlReceiverService.class).warn("[MyBatis-TimeCost] Clipboard copy failed", t);
+                    }
+                }
+
+                respond(exchange, 200, "{\"status\":\"ok\"}");
+            } catch (Throwable t) {
+                Logger.getInstance(SqlReceiverService.class).warn("[MyBatis-TimeCost] JSON parse error", t);
+                respond(exchange, 400, "Invalid JSON");
+            }
+        }
+
+        private static String readBody(InputStream is) throws IOException {
+            byte[] buf = is.readAllBytes();
+            return new String(buf, StandardCharsets.UTF_8);
+        }
+
+        private static void respond(HttpExchange exchange, int code, String text) throws IOException {
+            byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+            exchange.sendResponseHeaders(code, bytes.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(bytes);
+            }
+        }
+
+        private static String getAsString(JsonObject obj, String name, String def) {
+            if (obj.has(name) && !obj.get(name).isJsonNull()) {
+                return Objects.toString(obj.get(name).getAsString(), def);
+            }
+            return def;
+        }
+
+        private static Long getAsLong(JsonObject obj, String name, Long def) {
+            if (obj.has(name) && !obj.get(name).isJsonNull()) {
+                try { return obj.get(name).getAsLong(); } catch (Exception ignored) {}
+            }
+            return def;
+        }
+
+        private static String compact(String sql) {
+            return sql.replaceAll("[\\r\\n\\t]+", " ").replaceAll(" +", " ").trim();
+        }
+    }
+}

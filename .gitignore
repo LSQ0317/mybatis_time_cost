@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# Gradle
+.gradle/
+build/
+
+# Logs
+*.log
+
+# IntelliJ plugin sandbox
+mybatis-time-cost-idea/build/
+
+# Module build outputs
+mybatis-time-cost-demo/build/
+mybatis-time-cost-mybatis/build/
+
+# Local config overrides
+local.properties
+
+# Runtime pid / temp files
+*.pid
+*.tmp
+*.swp

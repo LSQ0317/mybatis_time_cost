@@ -1,0 +1,29 @@
+<idea-plugin>
+    <id>com.mybatis.timecost.idea</id>
+    <name>MyBatis Time Cost</name>
+    <vendor email="dev@example.com">mybatis-time-cost</vendor>
+    <version>0.1.0</version>
+    <description>通过控制台日志或本地 HTTP 接收 MyBatis SQL，在 IDEA 中展示完整 SQL 与耗时</description>
+    <idea-version since-build="243"/>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationConfigurable
+                id="com.mybatis.timecost.idea.settings"
+                displayName="MyBatis Time Cost"
+                instance="com.mybatis.timecost.idea.SqlSettingsConfigurable"/>
+        <applicationService serviceImplementation="com.mybatis.timecost.idea.SqlEventStore"/>
+        <applicationService serviceImplementation="com.mybatis.timecost.idea.MybatisLogParserService"/>
+        <applicationService serviceImplementation="com.mybatis.timecost.idea.SqlSettingsState"/>
+        <applicationService
+                serviceImplementation="com.mybatis.timecost.idea.SqlReceiverService"
+                preload="true"/>
+        <consoleFilterProvider implementation="com.mybatis.timecost.idea.MybatisConsoleFilterProvider"/>
+        <toolWindow id="MyBatis Time Cost"
+                    anchor="bottom"
+                    factoryClass="com.mybatis.timecost.idea.SqlToolWindowFactory"
+                    canCloseContents="false"/>
+    </extensions>
+</idea-plugin>
