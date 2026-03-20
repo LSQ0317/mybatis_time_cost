@@ -11,7 +11,6 @@ public final class MybatisAgentHelper {
 
     public static void initialize(AgentConfig config) {
         sender = new AgentSqlEventSender(config.host(), config.port());
-        AgentDebugLog.info("Initialized MyBatis agent helper with host=" + config.host() + ", port=" + config.port());
     }
 
     public static long enter() {
@@ -20,7 +19,6 @@ public final class MybatisAgentHelper {
 
     public static void exit(long startedAtNs, Object[] args) {
         if (args == null || args.length == 0 || !(args[0] instanceof MappedStatement)) {
-            AgentDebugLog.info("Skip agent exit: no MappedStatement in invocation arguments");
             return;
         }
         MappedStatement ms = (MappedStatement) args[0];
@@ -33,7 +31,6 @@ public final class MybatisAgentHelper {
         }
         long durationMs = (System.nanoTime() - startedAtNs) / 1_000_000;
         String renderedSql = AgentSqlRenderUtil.render(boundSql, ms.getConfiguration(), AgentDialect.mysql());
-        AgentDebugLog.info("Captured SQL via javaagent, mapperId=" + ms.getId() + ", durationMs=" + durationMs);
         sender.send(renderedSql, durationMs, ms.getId(), Thread.currentThread().getName());
     }
 }
