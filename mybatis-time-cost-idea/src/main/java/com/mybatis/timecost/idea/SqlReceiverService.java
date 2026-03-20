@@ -12,6 +12,7 @@ import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -49,18 +50,31 @@ public final class SqlReceiverService implements Disposable {
         }
         stopServer();
         try {
-            server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
-            server.createContext("/sql", new SqlHandler());
-            executor = Executors.newCachedThreadPool();
-            server.setExecutor(executor);
-            server.start();
-            started = true;
-            currentPort = port;
-            LOG.info("[MyBatis-TimeCost] HTTP server started on http://127.0.0.1:" + port + "/sql");
+            startServer(port);
         } catch (IOException e) {
+            if (e instanceof BindException && !settings.isPortOverridden()) {
+                int fallbackPort = tryStartOnFallbackPort(port + 1, Math.min(port + 20, 65535));
+                if (fallbackPort > 0) {
+                    settings.setPort(fallbackPort);
+                    settings.notifySettingsChanged();
+                    LOG.warn("[MyBatis-TimeCost] Port " + port + " is in use, switched to " + fallbackPort);
+                    return;
+                }
+            }
             currentPort = -1;
             LOG.warn("[MyBatis-TimeCost] Failed to start HTTP server on port " + port, e);
         }
+    }
+
+    private void startServer(int port) throws IOException {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
+        server.createContext("/sql", new SqlHandler());
+        executor = Executors.newCachedThreadPool();
+        server.setExecutor(executor);
+        server.start();
+        started = true;
+        currentPort = port;
+        LOG.info("[MyBatis-TimeCost] HTTP server started on http://127.0.0.1:" + port + "/sql");
     }
 
     @Override
@@ -92,6 +106,18 @@ public final class SqlReceiverService implements Disposable {
         return currentPort;
     }
 
+    private int tryStartOnFallbackPort(int startInclusive, int endInclusive) {
+        for (int port = startInclusive; port <= endInclusive; port++) {
+            try {
+                startServer(port);
+                return port;
+            } catch (IOException ignored) {
+                // Keep scanning until an actual bind succeeds.
+            }
+        }
+        return -1;
+    }
+
     private static final class SqlHandler implements HttpHandler {
         @Override
         public void handle(@NotNull HttpExchange exchange) throws IOException {
@@ -112,7 +138,7 @@ public final class SqlReceiverService implements Disposable {
                     return;
                 }
 
-                String logLine = "[MyBatis-TimeCost] duration=" + (duration != null ? duration + "ms" : "n/a")
+                String logLine = "[MyBatis-TimeCost] duration=" + DurationFormatUtil.format(duration)
                         + (mapperId != null ? " mapper=" + mapperId : "")
                         + " thread=" + thread
                         + " sql=" + compact(sql);

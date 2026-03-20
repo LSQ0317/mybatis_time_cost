@@ -18,6 +18,7 @@ repositories {
 
 dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
+    runtimeOnly(project(":agent"))
 }
 
 intellij {
@@ -27,6 +28,12 @@ intellij {
 }
 
 tasks {
+    runIde {
+        minHeapSize = "512m"
+        maxHeapSize = "2048m"
+        jvmArgs("-Dfile.encoding=UTF-8")
+    }
+
     patchPluginXml {
         sinceBuild.set("243")
         untilBuild.set("")

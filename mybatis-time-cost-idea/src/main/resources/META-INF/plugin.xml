@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.mybatis.timecost.idea</id>
     <name>MyBatis Time Cost</name>
-    <vendor email="dev@example.com">mybatis-time-cost</vendor>
+    <vendor email="wintermist317@gmail.com">刘少琦</vendor>
     <version>0.1.0</version>
     <description>通过控制台日志或本地 HTTP 接收 MyBatis SQL，在 IDEA 中展示完整 SQL 与耗时</description>
     <idea-version since-build="243"/>
@@ -14,6 +14,7 @@
                 id="com.mybatis.timecost.idea.settings"
                 displayName="MyBatis Time Cost"
                 instance="com.mybatis.timecost.idea.SqlSettingsConfigurable"/>
+        <runConfigurationExtension implementation="com.mybatis.timecost.idea.MybatisAgentRunConfigurationExtension"/>
         <applicationService serviceImplementation="com.mybatis.timecost.idea.SqlEventStore"/>
         <applicationService serviceImplementation="com.mybatis.timecost.idea.MybatisLogParserService"/>
         <applicationService serviceImplementation="com.mybatis.timecost.idea.SqlSettingsState"/>

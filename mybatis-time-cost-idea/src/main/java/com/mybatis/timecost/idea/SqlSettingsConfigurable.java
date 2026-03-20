@@ -17,6 +17,7 @@ import java.awt.Insets;
 public final class SqlSettingsConfigurable implements Configurable {
     private JPanel panel;
     private JCheckBox captureEnabledCheckBox;
+    private JCheckBox agentInjectionCheckBox;
     private JCheckBox logCaptureCheckBox;
     private JCheckBox httpCaptureCheckBox;
     private JCheckBox autoCopyCheckBox;
@@ -34,6 +35,7 @@ public final class SqlSettingsConfigurable implements Configurable {
         if (panel == null) {
             panel = new JPanel(new GridBagLayout());
             captureEnabledCheckBox = new JCheckBox("启用 SQL 采集");
+            agentInjectionCheckBox = new JCheckBox("从 Run/Debug 自动注入 Java Agent");
             logCaptureCheckBox = new JCheckBox("启用控制台日志解析");
             httpCaptureCheckBox = new JCheckBox("启用本地 HTTP 接收");
             autoCopyCheckBox = new JCheckBox("自动复制最新 SQL 到剪贴板");
@@ -48,6 +50,9 @@ public final class SqlSettingsConfigurable implements Configurable {
             gbc.anchor = GridBagConstraints.WEST;
             gbc.insets = new Insets(8, 8, 8, 8);
             panel.add(captureEnabledCheckBox, gbc);
+
+            gbc.gridy++;
+            panel.add(agentInjectionCheckBox, gbc);
 
             gbc.gridy++;
             panel.add(logCaptureCheckBox, gbc);
@@ -96,6 +101,7 @@ public final class SqlSettingsConfigurable implements Configurable {
     public boolean isModified() {
         SqlSettingsState settings = SqlSettingsState.getInstance();
         return captureEnabledCheckBox.isSelected() != settings.isCaptureEnabled()
+                || agentInjectionCheckBox.isSelected() != settings.isAgentInjectionEnabled()
                 || logCaptureCheckBox.isSelected() != settings.isLogCaptureEnabled()
                 || httpCaptureCheckBox.isSelected() != settings.isHttpCaptureEnabled()
                 || autoCopyCheckBox.isSelected() != settings.isAutoCopyToClipboard()
@@ -108,6 +114,7 @@ public final class SqlSettingsConfigurable implements Configurable {
     public void apply() {
         SqlSettingsState settings = SqlSettingsState.getInstance();
         settings.setCaptureEnabled(captureEnabledCheckBox.isSelected());
+        settings.setAgentInjectionEnabled(agentInjectionCheckBox.isSelected());
         settings.setLogCaptureEnabled(logCaptureCheckBox.isSelected());
         settings.setHttpCaptureEnabled(httpCaptureCheckBox.isSelected());
         settings.setAutoCopyToClipboard(autoCopyCheckBox.isSelected());
@@ -116,12 +123,14 @@ public final class SqlSettingsConfigurable implements Configurable {
         settings.setSlowThresholdMs((Integer) slowThresholdSpinner.getValue());
         SqlEventStore.getInstance().trimToMaxEvents();
         SqlReceiverService.getInstance().reloadConfiguration();
+        settings.notifySettingsChanged();
     }
 
     @Override
     public void reset() {
         SqlSettingsState settings = SqlSettingsState.getInstance();
         captureEnabledCheckBox.setSelected(settings.isCaptureEnabled());
+        agentInjectionCheckBox.setSelected(settings.isAgentInjectionEnabled());
         logCaptureCheckBox.setSelected(settings.isLogCaptureEnabled());
         httpCaptureCheckBox.setSelected(settings.isHttpCaptureEnabled());
         autoCopyCheckBox.setSelected(settings.isAutoCopyToClipboard());

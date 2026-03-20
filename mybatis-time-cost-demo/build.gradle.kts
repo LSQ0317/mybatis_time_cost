@@ -32,5 +32,5 @@ tasks.test {
 }
 
 tasks.named<BootRun>("bootRun") {
-    jvmArgs = listOf("-Xms256m", "-Xmx1024m", "-Dfile.encoding=UTF-8")
+    jvmArgs = listOf("-Xms512m", "-Xmx2048m", "-Dfile.encoding=UTF-8")
 }

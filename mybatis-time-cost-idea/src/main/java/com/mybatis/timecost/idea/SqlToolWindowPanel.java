@@ -38,12 +38,14 @@ public final class SqlToolWindowPanel extends JPanel implements SqlEventListener
     private final JLabel statusLabel = new JLabel("", SwingConstants.LEFT);
     private final JLabel portLabel = new JLabel("", SwingConstants.LEFT);
     private final JCheckBox enableCaptureCheckBox = new JCheckBox("启用采集");
+    private final SqlSettingsListener settingsListener = this::handleSettingsChanged;
 
     public SqlToolWindowPanel() {
         super(new BorderLayout());
         buildUi();
         loadExistingEvents();
         SqlEventStore.getInstance().addListener(this);
+        SqlSettingsState.getInstance().addListener(settingsListener);
         refreshStatus();
     }
 
@@ -58,7 +60,7 @@ public final class SqlToolWindowPanel extends JPanel implements SqlEventListener
 
         JButton settingsButton = new JButton("设置");
         settingsButton.addActionListener(event ->
-                ShowSettingsUtil.getInstance().showSettingsDialog(null, "MyBatis SQL 监控"));
+                ShowSettingsUtil.getInstance().showSettingsDialog(null, SqlSettingsConfigurable.class));
 
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
         toolbar.add(enableCaptureCheckBox);
@@ -127,7 +129,7 @@ public final class SqlToolWindowPanel extends JPanel implements SqlEventListener
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Time: ").append(TIME_FORMATTER.format(Instant.ofEpochMilli(event.getReceivedAt()))).append('\n');
-        sb.append("Duration: ").append(event.getDurationMs() != null ? event.getDurationMs() + "ms" : "n/a").append('\n');
+        sb.append("Duration: ").append(DurationFormatUtil.formatWithRaw(event.getDurationMs())).append('\n');
         sb.append("Mapper: ").append(valueOrDefault(event.getMapperId())).append('\n');
         sb.append("Thread: ").append(valueOrDefault(event.getThreadName())).append("\n\n");
         sb.append(event.getSql());
@@ -139,7 +141,18 @@ public final class SqlToolWindowPanel extends JPanel implements SqlEventListener
         SqlSettingsState settings = SqlSettingsState.getInstance();
         settings.setCaptureEnabled(enableCaptureCheckBox.isSelected());
         SqlReceiverService.getInstance().reloadConfiguration();
+        settings.notifySettingsChanged();
         refreshStatus();
+    }
+
+    @Override
+    public void removeNotify() {
+        SqlSettingsState.getInstance().removeListener(settingsListener);
+        super.removeNotify();
+    }
+
+    private void handleSettingsChanged() {
+        ApplicationManager.getApplication().invokeLater(this::refreshStatus);
     }
 
     private void copySelectedSql() {
@@ -161,7 +174,13 @@ public final class SqlToolWindowPanel extends JPanel implements SqlEventListener
         enableCaptureCheckBox.setSelected(settings.isCaptureEnabled());
         statusLabel.setText("事件数：" + tableModel.getRowCount() + " | 服务："
                 + (receiverService.isStarted() ? "运行中" : "已停止"));
-        portLabel.setText("端口：" + (receiverService.isStarted() ? receiverService.getCurrentPort() : settings.getPort()));
+        int configuredPort = settings.getPort();
+        int activePort = receiverService.getCurrentPort();
+        if (receiverService.isStarted() && activePort > 0 && activePort != configuredPort) {
+            portLabel.setText("端口：" + activePort + "（配置：" + configuredPort + "）");
+            return;
+        }
+        portLabel.setText("端口：" + (receiverService.isStarted() ? activePort : configuredPort));
     }
 
     private static String valueOrDefault(String value) {
@@ -205,7 +224,7 @@ public final class SqlToolWindowPanel extends JPanel implements SqlEventListener
             SqlEvent event = events.get(rowIndex);
             return switch (columnIndex) {
                 case 0 -> TIME_FORMATTER.format(Instant.ofEpochMilli(event.getReceivedAt()));
-                case 1 -> event.getDurationMs() != null ? event.getDurationMs() + "ms" : "n/a";
+                case 1 -> DurationFormatUtil.format(event.getDurationMs());
                 case 2 -> valueOrDefault(event.getMapperId());
                 case 3 -> compact(event.getSql());
                 default -> "";
